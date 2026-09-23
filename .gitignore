@@ -11,10 +11,16 @@ __pycache__/
 venv/
 
 # Build / release outputs
-build/JAM/
 dist/
 release/
+build/pyinstaller/
+build/version_info.txt
 *.spec.bak
+*.bak
+
+# One-off local patch/helper files
+APPLY_ME.txt
+apply_appjs_flag_fix.py
 
 # PyInstaller / installer temp
 *.log
