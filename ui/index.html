@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JAM - Job Application Manager</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app" class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><img src="../assets/branding/jam_logo.png" alt="JAM"><div class="brand-copy"><strong>Job Application Manager</strong><span>MADE BY FAROUK</span></div></div>
+    <nav class="nav-list">
+      <button class="nav-item active" data-page="dashboard"><span>⌂</span><b>Dashboard</b></button>
+      <button class="nav-item" data-page="applications"><span>▤</span><b>Applications</b></button>
+      <button class="nav-item" data-page="pipeline"><span>◫</span><b>Pipeline</b></button>
+      <button class="nav-item" data-page="analytics"><span>↗</span><b>Analytics</b></button>
+      <button class="nav-item" data-page="calendar"><span>▦</span><b>Calendar</b></button>
+      <button class="nav-item" data-page="analyzer"><span>◎</span><b>Analyzer</b></button>
+      <button class="nav-item" data-page="exports"><span>⇩</span><b>Exports</b></button>
+      <button class="nav-item" data-page="settings"><span>⚙</span><b>Settings</b></button>
+      <button class="nav-item" data-page="guide"><span>?</span><b>Guide</b></button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-links">
+      <button id="recentProjectsBtn">Recent Projects</button>
+      <button id="contactBtn">Contact</button>
+      <button id="aboutBtn">About JAM</button>
+    </div>
+    <div class="sidebar-footer">Local-first • Private • Windows</div>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div><div class="eyebrow" id="pageEyebrow">JOB SEARCH COMMAND CENTER</div><h1 id="pageTitle">Dashboard</h1></div>
+      <div class="topbar-actions">
+        <button id="notificationBellBtn" class="notification-bell" type="button" title="Notifications" aria-label="Notifications">
+          <span class="notification-bell-icon">♢</span>
+          <span id="notificationBadge" class="notification-badge" hidden>0</span>
+        </button>
+        <button id="supportTopBtn" class="btn support-top">♥ Support JAM</button>
+        <button id="importExcelBtn" class="btn secondary">Import Excel</button>
+        <button id="openProjectBtn" class="btn secondary">Open .jam</button>
+        <button id="saveProjectBtn" class="btn secondary">Save .jam</button>
+        <button id="captureBtn" class="btn gold">Capture Mode</button>
+      </div>
+    </header>
+
+    <section id="dashboardPage" class="page active">
+      <div class="dashboard-grid">
+        <article class="hero-card hero-main"><span class="eyebrow">FAST CAPTURE</span><h2>Track the next opportunity without breaking your flow.</h2><p>Pin JAM over LinkedIn, Indeed or any job board, capture the role, save it, and move on.</p><div class="hero-actions"><button id="dashboardCaptureBtn" class="btn gold">Open Capture Mode</button><button id="dashboardAddBtn" class="btn ghost">Add Job</button></div></article>
+        <article class="hero-card hero-analyze"><span class="eyebrow">LOCAL CV MATCH</span><h2>Analyze when you need it.</h2><p>Compare the job against your selected CV. No cloud AI required.</p><button id="dashboardAnalyzerBtn" class="btn ghost">Open Analyzer</button></article>
+        <article class="metric-card metric-wide"><span>Total tracked</span><strong id="statTotal">0</strong><small>All opportunities saved in JAM</small></article>
+        <article class="metric-card"><span>Applied</span><strong id="statApplied">0</strong><small>Applications sent</small></article>
+        <article class="metric-card"><span>Interviewing</span><strong id="statInterviewing">0</strong><small>Currently active</small></article>
+        <article class="metric-card"><span>Offers / Accepted</span><strong id="statAccepted">0</strong><small>Positive outcomes</small></article>
+        <article class="metric-card"><span>Rejected</span><strong id="statRejected">0</strong><small>Closed applications</small></article>
+        <article class="metric-card"><span>Average / day</span><strong id="statAverageDay">0</strong><small>Tracking pace</small></article>
+        <article class="metric-card metric-gold"><span>Avg. match</span><strong id="statAverageScore">0%</strong><small>Analyzed roles only</small></article>
+      </div>
+      <div class="section-head"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Latest opportunities</h2></div><button class="text-btn" data-nav="applications">View all →</button></div>
+      <div id="recentApplications" class="recent-list"></div>
+    </section>
+
+    <section id="applicationsPage" class="page">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button id="addJobBtn" class="btn gold">+ Add Job</button>
+          <button id="bulkDeleteBtn" class="btn danger subtle" disabled>Delete selected</button>
+          <button id="editSelectedBtn" class="btn secondary" hidden>Edit selected</button>
+        </div>
+        <div class="toolbar-right">
+          <input id="searchInput" class="control search" type="search" placeholder="Search company, role, location, source...">
+          <button id="clearTableFiltersBtn" class="btn secondary compact-action">Clear filters</button>
+        </div>
+      </div>
+
+      <div class="export-strip">
+        <span id="selectionLabel">0 selected</span>
+        <div>
+          <button id="exportExcelBtn" class="btn secondary">Export Excel</button>
+          <button id="exportPdfBtn" class="btn secondary">Export PDF</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="jobs-table">
+          <thead>
+            <tr>
+              <th class="check-col"><input id="selectAllRows" type="checkbox"></th>
+
+              <th data-column="company">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="company">Company <span class="sort-indicator"></span></button>
+                  <button class="th-filter" data-filter="company" title="Filter company">▾</button>
+                </div>
+              </th>
+
+              <th data-column="job_title">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="job_title">Job Title <span class="sort-indicator"></span></button>
+                  <button class="th-filter" data-filter="job_title" title="Filter job title">▾</button>
+                </div>
+              </th>
+
+              <th data-column="status">
+                <div class="th-shell">
+                  <span class="th-label">Status</span>
+                  <button class="th-filter" data-filter="status" title="Filter status">▾</button>
+                </div>
+              </th>
+
+              <th data-column="match_score">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="match_score">Score <span class="sort-indicator"></span></button>
+                  <button class="th-filter" data-filter="match_score" title="Filter score">▾</button>
+                </div>
+              </th>
+
+              <th data-column="rating">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="rating">★ <span class="sort-indicator"></span></button>
+                  <button class="th-filter" data-filter="rating" title="Filter rating">▾</button>
+                </div>
+              </th>
+
+              <th data-column="location">
+                <div class="th-shell">
+                  <span class="th-label">Location</span>
+                  <button class="th-filter" data-filter="location" title="Filter location">▾</button>
+                </div>
+              </th>
+
+              <th data-column="date_saved">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="date_saved">Date Saved <span class="sort-indicator"></span></button>
+                  <button class="th-filter" data-filter="date_saved" title="Filter month">▾</button>
+                </div>
+              </th>
+
+              <th data-column="source">
+                <div class="th-shell">
+                  <span class="th-label">Source</span>
+                  <button class="th-filter" data-filter="source" title="Filter source">▾</button>
+                </div>
+              </th>
+
+              <th class="delete-col"></th>
+            </tr>
+          </thead>
+          <tbody id="jobsTableBody"></tbody>
+        </table>
+
+        <div id="tableEmpty" class="empty-state">
+          <div class="empty-icon">JAM</div>
+          <h3>No jobs match the current filters</h3>
+          <p>Add an opportunity, use Capture Mode, or clear the filters.</p>
+          <button class="btn gold" data-add-job>Add Job</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipelinePage" class="page">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">PIPELINE</span>
+          <h2>Your application flow</h2>
+          <p class="pipeline-hint">Hold the left mouse button and drag the board to move left, right, up or down.</p>
+        </div>
+      </div>
+      <div id="pipelineBoard" class="pipeline-board" title="Click and drag to navigate"></div>
+    </section>
+
+    <section id="analyticsPage" class="page">
+      <div class="analytics-toolbar">
+        <div>
+          <span class="eyebrow">APPLICATION TRENDS</span>
+          <h2>Job search analytics</h2>
+          <p class="muted">See how your application activity changes over time using your own JAM data.</p>
+        </div>
+        <div class="analytics-range-controls">
+          <label>From<input id="analyticsStartDate" class="control" type="date"></label>
+          <label>To<input id="analyticsEndDate" class="control" type="date"></label>
+          <button id="analyticsAllBtn" class="btn secondary compact-action" type="button">All data</button>
+          <button id="analytics30Btn" class="btn secondary compact-action" type="button">30 days</button>
+          <button id="analytics90Btn" class="btn secondary compact-action" type="button">90 days</button>
+        </div>
+      </div>
+
+      <div class="analytics-kpi-grid">
+        <article class="analytics-kpi"><span>Tracked</span><strong id="analyticsTracked">0</strong><small>Saved in selected period</small></article>
+        <article class="analytics-kpi"><span>Applied</span><strong id="analyticsApplied">0</strong><small>Applications sent</small></article>
+        <article class="analytics-kpi"><span>Avg. match</span><strong id="analyticsAvgScore">0%</strong><small>Analyzed jobs only</small></article>
+        <article class="analytics-kpi"><span>Active interviews</span><strong id="analyticsInterviews">0</strong><small>Current status</small></article>
+      </div>
+
+      <div class="analytics-main-grid">
+        <article class="panel analytics-trend-panel">
+          <div class="analytics-card-head">
+            <div><span class="eyebrow">TREND</span><h2>Applications over time</h2></div>
+            <div class="analytics-legend"><span><i class="legend-dot tracked"></i>Tracked</span><span><i class="legend-dot applied"></i>Applied</span></div>
+          </div>
+          <div id="analyticsTrendChart" class="analytics-chart"></div>
+        </article>
+
+        <article class="panel analytics-source-panel">
+          <span class="eyebrow">SOURCES</span>
+          <h2>Where applications come from</h2>
+          <div id="analyticsSources" class="analytics-source-list"></div>
+        </article>
+
+        <article class="panel analytics-status-panel">
+          <span class="eyebrow">STATUS MIX</span>
+          <h2>Current application outcomes</h2>
+          <div id="analyticsStatuses" class="analytics-status-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="calendarPage" class="page">
+      <div class="calendar-toolbar">
+        <div>
+          <span class="eyebrow">PLANNER</span>
+          <h2>Application calendar</h2>
+          <p class="muted">See applications by date and keep interviews, follow-ups and deadlines in one place.</p>
+        </div>
+        <div class="calendar-toolbar-actions">
+          <button id="calendarPrevBtn" class="btn secondary compact-action" type="button">←</button>
+          <strong id="calendarMonthLabel" class="calendar-month-label"></strong>
+          <button id="calendarNextBtn" class="btn secondary compact-action" type="button">→</button>
+          <button id="calendarTodayBtn" class="btn secondary compact-action" type="button">Today</button>
+          <button id="calendarAddEventBtn" class="btn gold" type="button">+ Add event</button>
+        </div>
+      </div>
+
+      <div class="calendar-layout">
+        <article class="panel calendar-main-panel">
+          <div id="calendarWeekdays" class="calendar-weekdays"></div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </article>
+
+        <aside class="calendar-side-panel">
+          <article class="panel">
+            <span class="eyebrow">SELECTED DAY</span>
+            <h2 id="calendarSelectedLabel">Today</h2>
+            <div id="calendarSelectedItems" class="calendar-selected-items"></div>
+          </article>
+          <article class="panel">
+            <span class="eyebrow">UPCOMING</span>
+            <h2>Next events</h2>
+            <div id="calendarUpcoming" class="calendar-upcoming"></div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section id="analyzerPage" class="page">
+      <div class="analyzer-layout">
+        <article class="panel">
+          <span class="eyebrow">CV SOURCE</span>
+          <h2>Selected CV</h2>
+          <p id="selectedCvPath" class="muted">No CV selected yet.</p>
+          <div class="button-row analyzer-cv-actions">
+            <button id="chooseCvBtn" class="btn gold">Choose CV</button>
+            <button id="previewCvBtn" class="btn secondary">Preview CV</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <span class="eyebrow">LOCAL MATCH ENGINE</span>
+          <h2>Analyze a role</h2>
+          <label>Job title<input id="analyzerTitle" class="control full" type="text" placeholder="Data Analyst"></label>
+          <label>Job description<textarea id="analyzerDescription" class="control full textarea-large" placeholder="Paste the full job description..."></textarea></label>
+          <div class="button-row analyzer-main-actions">
+            <button id="clearAnalyzerBtn" class="btn secondary">Clear</button>
+            <button id="saveAnalyzerResultBtn" class="btn secondary" disabled>Save analysis</button>
+            <button id="exportAnalyzerPdfBtn" class="btn secondary" disabled>Export PDF</button>
+            <button id="runAnalyzerBtn" class="btn gold">Analyze Job</button>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel analyzer-history-panel">
+        <div class="section-head compact-head">
+          <div>
+            <span class="eyebrow">ANALYSIS HISTORY</span>
+            <h2>Saved analyses</h2>
+          </div>
+        </div>
+        <div id="analyzerHistoryList" class="analyzer-history-list">
+          <p class="muted">No saved analyses yet.</p>
+        </div>
+      </article>
+    </section>
+
+    <section id="exportsPage" class="page"><div class="section-head"><div><span class="eyebrow">EXPORT HISTORY</span><h2>Generated files</h2></div><button id="openExportsFolderBtn" class="btn secondary">Open export folder</button></div><div id="exportHistory" class="history-list"></div></section>
+
+    <section id="settingsPage" class="page">
+      <div class="settings-grid">
+        <article class="panel">
+          <span class="eyebrow">ANALYZER</span>
+          <h2>CV & salary target</h2>
+          <p id="settingsCvPath" class="muted">No CV selected.</p>
+          <button id="settingsChooseCvBtn" class="btn secondary">Choose CV</button>
+
+          <div class="currency-section">
+            <label>Salary currency</label>
+            <div class="currency-picker" id="salaryCurrencyPicker">
+              <input id="salaryCurrencySearch" class="control full" type="text" placeholder="Search Tunisia, TND, Euro, Dollar..." autocomplete="off">
+              <input id="salaryCurrency" type="hidden" value="EUR">
+              <div id="salaryCurrencySuggestions" class="currency-suggestions" hidden></div>
+            </div>
+          </div>
+
+          <div class="two-cols settings-row">
+            <label>Annual gross target min<input id="salaryMin" class="control full" type="number" min="0" step="1000"></label>
+            <label>Annual gross target max<input id="salaryMax" class="control full" type="number" min="0" step="1000"></label>
+          </div>
+
+          <div class="salary-converter-card">
+            <div class="salary-converter-head">
+              <strong>Salary converter</strong>
+              <span>Real-time estimate</span>
+            </div>
+
+            <div class="salary-converter-grid">
+              <label>
+                Monthly net
+                <input id="salaryMonthlyNet" class="control full" type="number" min="0" step="50" inputmode="decimal">
+              </label>
+
+              <label>
+                Monthly gross
+                <input id="salaryMonthlyGross" class="control full" type="number" min="0" step="50" inputmode="decimal">
+              </label>
+
+              <label>
+                Annual net
+                <input id="salaryAnnualNet" class="control full" type="number" min="0" step="500" inputmode="decimal">
+              </label>
+
+              <label>
+                Annual gross
+                <input id="salaryAnnualGross" class="control full" type="number" min="0" step="500" inputmode="decimal">
+              </label>
+            </div>
+
+            <p class="salary-estimate-warning">
+              Estimate only. JAM uses net ≈ 78% of gross for quick comparison. Actual gross/net amounts vary by country, contract, taxes and deductions.
+            </p>
+          </div>
+
+          <button id="saveSettingsBtn" class="btn gold settings-save-btn">Save settings</button>
+        </article>
+
+        <article class="panel notification-settings-panel">
+          <span class="eyebrow">NOTIFICATIONS</span>
+          <h2>Notification preferences</h2>
+          <p class="muted">Keep useful reminders on, or disable any notification type you do not want.</p>
+
+          <label class="notification-master-setting">
+            <input id="notificationsEnabled" type="checkbox" checked>
+            <span><strong>Enable JAM notifications</strong><small>Master switch for reminder alerts and the notification badge.</small></span>
+          </label>
+
+          <div class="notification-setting-list">
+            <label><input type="checkbox" data-notification-setting="notify_interview_tomorrow" checked><span><strong>Interview tomorrow</strong><small>Remind me about interviews roughly one day ahead.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_interview_hour" checked><span><strong>Interview soon</strong><small>Remind me when an interview is about one hour away.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_followup_due" checked><span><strong>Follow-up due</strong><small>Alert me when a follow-up event is due or recently overdue.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_stale_application" checked><span><strong>Application needs attention</strong><small>Flag active applications not updated for 10 days.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_deadline" checked><span><strong>Deadline approaching</strong><small>Alert me when a saved deadline is close.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_unanalyzed" checked><span><strong>Unanalyzed applications</strong><small>Show a reminder when saved jobs still have no Analyzer score.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_backup_stale" checked><span><strong>Backup reminder</strong><small>Warn me when no recent JAM backup exists.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_upcoming_week" checked><span><strong>Upcoming week</strong><small>Summarize interviews, follow-ups and deadlines in the next 7 days.</small></span></label>
+            <label><input type="checkbox" data-notification-setting="notify_inactivity" checked><span><strong>Search inactivity</strong><small>Remind me if no new application has been saved for 3 days.</small></span></label>
+          </div>
+
+          <button id="saveNotificationSettingsBtn" class="btn gold settings-save-btn" type="button">Save notification settings</button>
+        </article>
+
+        <article id="jamUpdateSettingsCard" class="panel update-settings-panel">
+          <span class="eyebrow" data-update-card-kicker>JAM UPDATE</span>
+          <h2 data-update-card-title>Updates</h2>
+          <p class="muted" data-update-card-copy>JAM checks GitHub Releases automatically about once every 24 hours. You can also check manually at any time.</p>
+          <div class="update-settings-version">
+            <span data-update-version-label>Installed version</span>
+            <strong id="installedVersionText">…</strong>
+          </div>
+          <button id="checkUpdatesBtn" class="btn secondary" type="button">Check for Updates</button>
+        </article>
+
+        <article class="panel">
+          <span class="eyebrow">DATA SAFETY</span>
+          <h2>Backup & diagnostics</h2>
+          <p class="muted">A backup is a safety copy of JAM's local database. Use it if the database is damaged or you need a safe copy before major changes.</p>
+          <p class="backup-location">Backup folder: <span id="backupPathText">Windows local app data</span></p>
+          <div class="button-row backup-actions">
+            <button id="backupBtn" class="btn secondary">Create Backup</button>
+            <button id="backupFolderBtn" class="btn secondary">Open Backup Folder</button>
+            <button id="logsBtn" class="btn secondary">View Logs</button>
+          </div>
+        </article>
+
+        <article class="panel danger-panel">
+          <span class="eyebrow danger-text">DANGER ZONE</span>
+          <h2>Reset JAM</h2>
+          <p class="muted">Deletes JAM's internal tracked data and settings. Exported files already created on disk are not deleted.</p>
+          <button id="resetBtn" class="btn danger">Reset all JAM data</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="guidePage" class="page">
+      <div class="guide-shell">
+        <section class="guide-hero">
+          <div class="guide-hero-top">
+            <div>
+              <span class="eyebrow">GUIDE</span>
+              <h2>JAM Guide</h2>
+              <p id="guideIntro" class="muted"></p>
+            </div>
+            <div class="guide-hero-actions">
+              <button id="guideTutorialBtn" type="button" class="btn secondary guide-tutorial-btn">▶ Play tutorial</button>
+              <div id="guideArticleCount" class="guide-article-count"></div>
+            </div>
+          </div>
+
+          <div class="guide-search-box">
+            <span class="guide-search-icon">⌕</span>
+            <input id="guideSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search the JAM Guide...">
+            <button id="guideClearSearch" type="button" class="guide-clear-search" aria-label="Clear search" hidden>×</button>
+          </div>
+          <div id="guideSearchHint" class="guide-search-hint"></div>
+        </section>
+
+        <section id="guideListView" class="guide-list-view">
+          <div class="guide-list-head">
+            <strong id="guideResultCount"></strong>
+            <span>A → Z</span>
+          </div>
+          <div id="guideResults" class="guide-results"></div>
+          <nav id="guidePagination" class="guide-pagination" aria-label="Guide pages"></nav>
+        </section>
+
+        <article id="guideArticleView" class="guide-article-view" hidden></article>
+      </div>
+    </section>
+  </main>
+
+  <section id="captureView" class="capture-view">
+    <div class="capture-header"><div class="capture-brand"><img src="../assets/branding/jam_logo.png" alt=""><div><strong>JAM</strong><span>QUICK CAPTURE</span></div></div><button id="exitCaptureBtn" class="icon-btn">×</button></div>
+    <div class="capture-body">
+      <div class="capture-pin-row"><span class="pin-badge">● PINNED</span><select id="captureCorner" class="control compact"><option value="top-right">Top right</option><option value="top-left">Top left</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option></select></div>
+      <label>Company<input id="capCompany" class="control full draft-trigger" type="text" placeholder="Company"></label>
+      <label>Job title<input id="capTitle" class="control full draft-trigger" type="text" placeholder="Job title"></label>
+      <div class="two-cols"><label>Location<input id="capLocation" class="control full draft-trigger" type="text" placeholder="Paris"></label><label>Status<select id="capStatus" class="control full"></select></label></div>
+      <label>Job URL<input id="capUrl" class="control full draft-trigger" type="url" placeholder="https://..."></label>
+      <label>Description<textarea id="capDescription" class="control full capture-description draft-trigger" placeholder="Paste job description..."></textarea></label>
+      <div class="two-cols"><label>Source<input id="capSource" class="control full draft-trigger" type="text" placeholder="LinkedIn"></label><label>Rating<select id="capRating" class="control full"><option value="0">No rating</option><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option><option value="4">★★★★</option><option value="5">★★★★★</option></select></label></div>
+      <label>Notes<textarea id="capNotes" class="control full capture-notes draft-trigger" placeholder="Quick note..."></textarea></label>
+      <div class="capture-actions"><button id="capSaveBtn" class="btn gold grow">Save & Clear</button><button id="capAnalyzeBtn" class="btn secondary">Analyze</button></div>
+    </div>
+  </section>
+</div>
+<div id="tableFilterRoot" class="table-filter-root"></div><div id="modalRoot" class="modal-root"></div><div id="analysisOverlayRoot" class="analysis-overlay-root"></div><div id="toastRoot" class="toast-root"></div>
+<div id="notificationDrawer" class="notification-drawer" hidden>
+  <div class="notification-drawer-head">
+    <div><span class="eyebrow">JAM</span><h2>Notifications</h2></div>
+    <button id="notificationDrawerClose" class="icon-btn" type="button" aria-label="Close notifications">×</button>
+  </div>
+  <div id="notificationDrawerSummary" class="notification-drawer-summary"></div>
+  <div id="notificationList" class="notification-list"></div>
+</div>
+<script src="js/app.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/batch1.js"></script>
+<script src="js/analyzer_hotfix.js"></script>
+<script src="js/settings_polish.js"></script>
+<script src="js/batch2.js"></script>
+<script src="js/batch3.js"></script>
+<script src="js/analytics_calendar.js"></script>
+<script src="js/guide.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/updater_ui.js"></script>
+<script src="js/settings_layout.js"></script>
+</body>
+</html>

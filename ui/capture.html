@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <title>JAM - Quick Capture</title>
+  <link
+    rel="stylesheet"
+    href="css/capture.css"
+  >
+</head>
+
+<body>
+  <main class="capture-shell">
+
+    <header class="capture-header">
+      <div class="capture-brand">
+        <img
+          src="../assets/branding/jam_logo.png"
+          alt="JAM"
+        >
+
+        <div>
+          <strong>JAM</strong>
+          <span>QUICK CAPTURE</span>
+        </div>
+      </div>
+
+      <button
+        id="closeCaptureBtn"
+        class="icon-btn"
+        type="button"
+        title="Exit Capture Mode"
+      >
+        ×
+      </button>
+    </header>
+
+    <section class="capture-content">
+
+      <div class="pin-row">
+        <span class="pinned">
+          ● PINNED
+        </span>
+
+        <select
+          id="cornerSelect"
+          class="control corner-control"
+        >
+          <option value="top-right">
+            Top right
+          </option>
+          <option value="top-left">
+            Top left
+          </option>
+          <option value="bottom-right">
+            Bottom right
+          </option>
+          <option value="bottom-left">
+            Bottom left
+          </option>
+        </select>
+      </div>
+
+      <label>
+        Company
+        <input
+          id="company"
+          class="control draft-trigger"
+          type="text"
+          placeholder="Company"
+          autocomplete="off"
+        >
+      </label>
+
+      <label>
+        Job title
+        <input
+          id="jobTitle"
+          class="control draft-trigger"
+          type="text"
+          placeholder="Job title"
+          autocomplete="off"
+        >
+      </label>
+
+      <div class="two-cols">
+        <label>
+          Location
+          <input
+            id="location"
+            class="control draft-trigger"
+            type="text"
+            placeholder="Paris"
+            autocomplete="off"
+          >
+        </label>
+
+        <label>
+          Status
+          <select
+            id="status"
+            class="control"
+          ></select>
+        </label>
+      </div>
+
+      <label>
+        Job URL
+        <input
+          id="jobUrl"
+          class="control draft-trigger"
+          type="url"
+          placeholder="https://..."
+          autocomplete="off"
+        >
+      </label>
+
+      <label>
+        Description
+        <textarea
+          id="description"
+          class="control description draft-trigger"
+          placeholder="Paste the job description..."
+        ></textarea>
+      </label>
+
+      <div class="two-cols">
+        <label>
+          Source
+          <input
+            id="source"
+            class="control draft-trigger"
+            type="text"
+            placeholder="LinkedIn"
+            autocomplete="off"
+          >
+        </label>
+
+        <label>
+          Rating
+          <select
+            id="rating"
+            class="control"
+          >
+            <option value="0">—</option>
+            <option value="1">★</option>
+            <option value="2">★★</option>
+            <option value="3">★★★</option>
+            <option value="4">★★★★</option>
+            <option value="5">★★★★★</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Notes
+        <textarea
+          id="notes"
+          class="control notes draft-trigger"
+          placeholder="Quick note..."
+        ></textarea>
+      </label>
+
+      <footer class="capture-actions">
+        <button
+          id="saveBtn"
+          class="btn gold"
+          type="button"
+        >
+          Save & Clear
+        </button>
+
+        <button
+          id="analyzeBtn"
+          class="btn secondary"
+          type="button"
+        >
+          Analyze
+        </button>
+      </footer>
+
+    </section>
+
+    <div
+      id="overlay"
+      class="overlay"
+      hidden
+    ></div>
+
+    <div
+      id="toast"
+      class="toast"
+      hidden
+    ></div>
+
+  </main>
+
+  <script src="js/capture.js"></script>
+</body>
+</html>

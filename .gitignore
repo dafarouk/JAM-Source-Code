@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environment
+.venv/
+venv/
+
+# Build / release outputs
+build/JAM/
+dist/
+release/
+*.spec.bak
+
+# PyInstaller / installer temp
+*.log
+*.tmp
+*.part
+
+# Local runtime downloads
+runtime/models/
+
+# Local user/runtime data
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.jam
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local secrets / env
+.env
+.env.*
