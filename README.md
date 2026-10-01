@@ -4,7 +4,7 @@ JAM is a local-first Windows desktop application for tracking job opportunities,
 
 ## Development version
 
-`0.1.0`
+`1.0.0`
 
 ## Stack
 
