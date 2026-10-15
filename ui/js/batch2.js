@@ -413,6 +413,7 @@
           <div class="details-card"><strong>${escapeHtml(tr('Date saved'))}</strong>${escapeHtml(fmtDateTime(app.date_saved))}</div>
           <div class="details-card"><strong>${escapeHtml(tr('Date applied'))}</strong>${escapeHtml(fmtDateTime(app.date_applied))}</div>
           <div class="details-card"><strong>${escapeHtml(tr('Source'))}</strong>${escapeHtml(app.source || '—')}</div>
+          <div class="details-card"><strong>${escapeHtml(tr('Applicants'))}</strong>${app.applicant_count == null ? '—' : escapeHtml(String(app.applicant_count))}</div>
           <div class="details-card"><strong>${escapeHtml(tr('Rating'))}</strong>${ratingStars(app.rating)}</div>
           <div class="details-card details-span-2">
             <strong>${escapeHtml(tr('Job URL'))}</strong>

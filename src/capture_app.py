@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import json
 import os
 import re
 import sys
@@ -25,6 +26,19 @@ from database import init_database
 from repositories.application_repository import ApplicationRepository
 from services.settings_service import SettingsService
 from services.recovery_service import RecoveryService
+from services.application_metadata_service import (
+    CUSTOM_SOURCES_SETTING,
+    DEFAULT_SOURCES,
+    FEATURED_SOURCES as DEFAULT_FEATURED_SOURCES,
+    applicant_competition_color,
+    is_known_source,
+    merge_source_options,
+    normalize_applicant_count,
+    normalize_location,
+    parse_custom_sources,
+    serialize_custom_sources,
+    source_matches as metadata_source_matches,
+)
 
 
 # ============================================================
@@ -67,77 +81,10 @@ STATUS_COLORS = {
     "Archived": "#6F7784",
 }
 
-# Balanced for Tunisia + France + international use.
-SOURCES = (
-    # Tunisia
-    "Keejob",
-    "Tanitjobs",
-    "Emploi.nat.tn",
-    "Tunisie Travail",
-    "EmploiTunisie",
-    "Optioncarriere Tunisie",
-    "Careerjet Tunisie",
-
-    # France
-    "APEC",
-    "France Travail",
-    "Welcome to the Jungle",
-    "JobTeaser",
-    "HelloWork",
-    "Cadremploi",
-    "Meteojob",
-    "LesJeudis",
-    "L'Etudiant",
-    "iQuesta",
-    "Wizbii",
-    "StudentJob",
-
-    # International / general
-    "LinkedIn",
-    "Indeed",
-    "Glassdoor",
-    "Monster",
-    "Talent.com",
-    "Jooble",
-    "Careerjet",
-    "EURES",
-    "EURAXESS",
-    "Wellfound",
-    "Remote OK",
-    "We Work Remotely",
-
-    # ATS / company careers
-    "Workday",
-    "SmartRecruiters",
-    "Greenhouse",
-    "Lever",
-    "Ashby",
-    "SAP SuccessFactors",
-    "Oracle Careers",
-    "Company careers page",
-
-    # MENA / wider region
-    "Bayt",
-    "GulfTalent",
-    "NaukriGulf",
-
-    # Other discovery channels
-    "Recruiter / Agency",
-    "Referral",
-    "School / Alumni",
-    "Other",
-)
-
-FEATURED_SOURCES = (
-    "LinkedIn",
-    "Keejob",
-    "Tanitjobs",
-    "Indeed",
-    "Welcome to the Jungle",
-    "JobTeaser",
-    "Glassdoor",
-    "Bayt",
-)
+# The canonical source catalog lives in application_metadata_service so the
+# main UI and Capture Mode use the same options and aliases.
+SOURCES = DEFAULT_SOURCES
+FEATURED_SOURCES = DEFAULT_FEATURED_SOURCES
 
 CORNER_META = {
     "top-left": ("↖", 0, 0),
@@ -170,6 +117,7 @@ CAPTURE_FR = {
     "Job URL": "URL de l’offre",
     "Description": "Description",
     "Source": "Source",
+    "Applicants": "Candidats",
     "Rating": "Note",
     "Clear": "Effacer",
     "Notes": "Notes",
@@ -222,8 +170,10 @@ CAPTURE_FR = {
     "Building CV profile": "Construction du profil CV",
     "Comparing evidence": "Comparaison des preuves",
     "Calculating evidence-based score": "Calcul du score basé sur les preuves",
+    "Company Website": "Site de l’entreprise",
     "Company careers page": "Page carrières de l’entreprise",
     "Recruiter / Agency": "Recruteur / Agence",
+    "Direct Contact": "Contact direct",
     "Referral": "Cooptation",
     "School / Alumni": "École / Alumni",
     "Other": "Autre",
@@ -343,25 +293,16 @@ def parse_args():
 # ============================================================
 
 
-def source_matches(query: str) -> list[str]:
-    """
-    Empty query -> balanced featured sources.
-    Typed query -> prefix only, exactly as requested.
-
-    Examples:
-      "L" -> LinkedIn, LesJeudis, L'Etudiant, Lever
-      "W" -> Welcome to the Jungle, Wellfound, We Work Remotely, Workday
-    """
-    query = str(query or "").strip().casefold()
-
-    if not query:
-        return list(FEATURED_SOURCES)
-
-    return [
-        source
-        for source in SOURCES
-        if source.casefold().startswith(query)
-    ][:8]
+def source_matches(
+    query: str,
+    sources: tuple[str, ...] | list[str] | None = None,
+) -> list[str]:
+    """Fuzzy/alias-aware source matching shared with the main JAM UI."""
+    return metadata_source_matches(
+        query,
+        sources or SOURCES,
+        limit=8,
+    )
 
 
 # ============================================================
@@ -389,8 +330,9 @@ class CaptureApp:
         self._scroll_window_id = None
         self._status_open = False
         self._source_open = False
-        self._source_match_values: list[str] = []
+        self._source_match_values: list[tuple[str, str]] = []
         self._suppress_source_focus_once = False
+        self._location_raw_value = ""
         self._scroll_velocity = 0.0
         self._scroll_animation_id = None
         self._scroll_target_px: float | None = None
@@ -484,6 +426,37 @@ class CaptureApp:
     def _source_label(self, source: str) -> str:
         return self._t(source)
 
+    def _all_source_options(self) -> list[str]:
+        custom = parse_custom_sources(
+            self.settings.get(CUSTOM_SOURCES_SETTING, "[]")
+        )
+        observed = [
+            str(row.get("source") or "").strip()
+            for row in self.repo.list_all()
+            if str(row.get("source") or "").strip()
+        ]
+        return merge_source_options(SOURCES, custom, observed)
+
+    def _save_custom_source(self, value: str) -> str:
+        value = str(value or "").strip()
+        if not value:
+            return ""
+        current = parse_custom_sources(
+            self.settings.get(CUSTOM_SOURCES_SETTING, "[]")
+        )
+        if not is_known_source(value, merge_source_options(SOURCES, current)):
+            current.append(value)
+            self.settings.set(
+                CUSTOM_SOURCES_SETTING,
+                serialize_custom_sources(current),
+            )
+        return value
+
+    def _source_add_label(self, value: str) -> str:
+        if self.language == "fr":
+            return f'+ Ajouter "{value}" aux sources'
+        return f'+ Add "{value}" to sources'
+
     def _work_mode_label(self, value: str) -> str:
         return self._t(value) if value else ""
 
@@ -497,6 +470,64 @@ class CaptureApp:
                 return canonical
 
         return ""
+
+    @staticmethod
+    def _validate_applicant_text(value: str) -> bool:
+        return value == "" or value.isdigit()
+
+    def _applicant_count_value(self) -> int | None:
+        return normalize_applicant_count(
+            self.applicant_count_var.get(),
+            infer_when_missing=False,
+        )
+
+    def _refresh_applicant_meter(self, *_args) -> None:
+        if not hasattr(self, "applicant_meter"):
+            return
+        try:
+            count = self._applicant_count_value()
+        except ValueError:
+            count = None
+
+        self.applicant_meter.delete("all")
+        width = max(1, int(self.applicant_meter.winfo_width() or 1))
+        height = max(1, int(self.applicant_meter.winfo_height() or 8))
+        self.applicant_meter.create_rectangle(
+            0,
+            0,
+            width,
+            height,
+            fill="#1E2937",
+            outline="",
+        )
+        if count is None:
+            return
+        fill_width = max(4, int(width * min(1.0, max(0, count) / 100)))
+        self.applicant_meter.create_rectangle(
+            0,
+            0,
+            fill_width,
+            height,
+            fill=applicant_competition_color(count),
+            outline="",
+        )
+
+    def _normalize_location_field(self, _event=None) -> None:
+        if not hasattr(self, "location_var"):
+            return
+        current = self.location_var.get().strip()
+        if not current:
+            self._location_raw_value = ""
+            return
+
+        # Keep the pasted/raw job-board value separately while showing the
+        # normalized city/country form in Capture.
+        if current != normalize_location(self._location_raw_value).get("display"):
+            self._location_raw_value = current
+        location = normalize_location(self._location_raw_value or current)
+        display = str(location.get("display") or current)
+        if display != self.location_var.get():
+            self.location_var.set(display)
 
     # ======================================================
     # NATIVE WINDOW / POSITIONING
@@ -971,8 +1002,61 @@ class CaptureApp:
             anchor="w",
         )
 
+    def _install_entry_undo(self, entry: tk.Entry) -> None:
+        entry._jam_undo_stack = []
+        entry._jam_redo_stack = []
+
+        def remember(_event=None):
+            current = entry.get()
+            stack = entry._jam_undo_stack
+            if not stack or stack[-1] != current:
+                stack.append(current)
+                if len(stack) > 200:
+                    del stack[:-200]
+            entry._jam_redo_stack.clear()
+
+        def on_keypress(event):
+            if event.state & 0x4:
+                return None
+            if event.keysym in {"BackSpace", "Delete"} or (event.char and event.char.isprintable()):
+                remember()
+            return None
+
+        def undo(_event=None):
+            stack = entry._jam_undo_stack
+            if not stack:
+                return "break"
+            current = entry.get()
+            previous = stack.pop()
+            if previous == current and stack:
+                previous = stack.pop()
+            entry._jam_redo_stack.append(current)
+            entry.delete(0, "end")
+            entry.insert(0, previous)
+            entry.icursor("end")
+            return "break"
+
+        def redo(_event=None):
+            redo_stack = entry._jam_redo_stack
+            if not redo_stack:
+                return "break"
+            current = entry.get()
+            next_value = redo_stack.pop()
+            entry._jam_undo_stack.append(current)
+            entry.delete(0, "end")
+            entry.insert(0, next_value)
+            entry.icursor("end")
+            return "break"
+
+        entry.bind("<KeyPress>", on_keypress, add="+")
+        entry.bind("<<Paste>>", remember, add="+")
+        entry.bind("<<Cut>>", remember, add="+")
+        entry.bind("<Control-z>", undo, add="+")
+        entry.bind("<Control-y>", redo, add="+")
+        entry.bind("<Control-Shift-Z>", redo, add="+")
+
     def _entry(self, parent, variable: tk.StringVar):
-        return tk.Entry(
+        entry = tk.Entry(
             parent,
             textvariable=variable,
             bg=FIELD,
@@ -984,6 +1068,24 @@ class CaptureApp:
             highlightcolor=GOLD,
             font=("Segoe UI", 9),
         )
+        self._install_entry_undo(entry)
+        return entry
+
+    @staticmethod
+    def _text_undo(widget: tk.Text):
+        try:
+            widget.edit_undo()
+        except tk.TclError:
+            pass
+        return "break"
+
+    @staticmethod
+    def _text_redo(widget: tk.Text):
+        try:
+            widget.edit_redo()
+        except tk.TclError:
+            pass
+        return "break"
 
     def _section_label(self, parent, text: str):
         label = self._label(parent, text)
@@ -1260,6 +1362,7 @@ class CaptureApp:
         self.work_mode_var = tk.StringVar()
         self.url_var = tk.StringVar()
         self.source_var = tk.StringVar()
+        self.applicant_count_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Saved")
 
         for variable in (
@@ -1269,6 +1372,7 @@ class CaptureApp:
             self.work_mode_var,
             self.url_var,
             self.source_var,
+            self.applicant_count_var,
         ):
             variable.trace_add("write", self._mark_draft_from_vars)
 
@@ -1283,7 +1387,9 @@ class CaptureApp:
 
         # Location
         self._section_label(self.form, self._t("Location"))
-        self._entry(self.form, self.location_var).pack(fill="x", ipady=5)
+        self.location_entry = self._entry(self.form, self.location_var)
+        self.location_entry.pack(fill="x", ipady=5)
+        self.location_entry.bind("<FocusOut>", self._normalize_location_field, add="+")
 
         # Work mode - visible segmented buttons so the field is impossible to
         # miss in the compact Capture window. Values stay canonical internally.
@@ -1380,6 +1486,9 @@ class CaptureApp:
             self.form,
             height=5,
             wrap="word",
+            undo=True,
+            autoseparators=True,
+            maxundo=-1,
             bg=FIELD,
             fg=TEXT,
             insertbackground=TEXT,
@@ -1393,6 +1502,21 @@ class CaptureApp:
         )
         self.description.pack(fill="x")
         self.description.bind("<KeyRelease>", self._mark_draft_from_text)
+        self.description.bind(
+            "<Control-z>",
+            lambda _e: self._text_undo(self.description),
+            add="+",
+        )
+        self.description.bind(
+            "<Control-y>",
+            lambda _e: self._text_redo(self.description),
+            add="+",
+        )
+        self.description.bind(
+            "<Control-Shift-Z>",
+            lambda _e: self._text_redo(self.description),
+            add="+",
+        )
 
         # Source autocomplete. Suggestions live INSIDE this holder, directly
         # under the Source field, so they can never jump below Notes again.
@@ -1433,6 +1557,38 @@ class CaptureApp:
         self.source_list.bind("<ButtonRelease-1>", self._source_click)
         self.source_list.bind("<Return>", self._source_choose)
         self.source_list.bind("<Escape>", lambda _e: self._hide_source_suggestions())
+
+        # Dedicated applicant count. Digits only, with a compact competition
+        # meter that moves from green to red as the number approaches 100+.
+        self._section_label(self.form, self._t("Applicants"))
+        applicant_holder = tk.Frame(self.form, bg=BG)
+        applicant_holder.pack(fill="x")
+        applicant_holder.columnconfigure(0, weight=1)
+
+        self.applicant_count_entry = self._entry(
+            applicant_holder,
+            self.applicant_count_var,
+        )
+        self.applicant_count_entry.configure(
+            validate="key",
+            validatecommand=(
+                self.root.register(self._validate_applicant_text),
+                "%P",
+            ),
+        )
+        self.applicant_count_entry.grid(row=0, column=0, sticky="ew", ipady=5)
+
+        self.applicant_meter = tk.Canvas(
+            applicant_holder,
+            width=78,
+            height=8,
+            bg=FIELD,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.applicant_meter.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.applicant_meter.bind("<Configure>", self._refresh_applicant_meter)
+        self.applicant_count_var.trace_add("write", self._refresh_applicant_meter)
 
         # Rating - clickable five-star row.
         self._section_label(self.form, self._t("Rating"))
@@ -1485,6 +1641,9 @@ class CaptureApp:
             self.form,
             height=3,
             wrap="word",
+            undo=True,
+            autoseparators=True,
+            maxundo=-1,
             bg=FIELD,
             fg=TEXT,
             insertbackground=TEXT,
@@ -1498,6 +1657,21 @@ class CaptureApp:
         )
         self.notes.pack(fill="x", pady=(0, 8))
         self.notes.bind("<KeyRelease>", self._mark_draft_from_text)
+        self.notes.bind(
+            "<Control-z>",
+            lambda _e: self._text_undo(self.notes),
+            add="+",
+        )
+        self.notes.bind(
+            "<Control-y>",
+            lambda _e: self._text_redo(self.notes),
+            add="+",
+        )
+        self.notes.bind(
+            "<Control-Shift-Z>",
+            lambda _e: self._text_redo(self.notes),
+            add="+",
+        )
 
         self.company_entry.focus_set()
 
@@ -1746,19 +1920,27 @@ class CaptureApp:
         self._refresh_source_suggestions()
 
     def _refresh_source_suggestions(self) -> None:
-        matches = source_matches(self.source_var.get())
+        query = self.source_var.get().strip()
+        options = self._all_source_options()
+        matches = source_matches(query, options)
 
         self.source_list.delete(0, "end")
-
-        self._source_match_values = list(matches)
+        self._source_match_values = [("source", value) for value in matches]
 
         for source in matches:
             self.source_list.insert(
                 "end",
-                self._source_label(source),
+                f"•  {self._source_label(source)}",
             )
 
-        if not matches:
+        if query and not is_known_source(query, options):
+            self._source_match_values.append(("add", query))
+            self.source_list.insert(
+                "end",
+                self._source_add_label(query),
+            )
+
+        if not self._source_match_values:
             self._hide_source_suggestions()
             return
 
@@ -1766,8 +1948,9 @@ class CaptureApp:
             self.source_suggestions.pack(fill="x", pady=(2, 0))
             self._source_open = True
 
-        # Use fewer rows when only a few prefix matches remain.
-        self.source_list.configure(height=max(1, min(5, len(matches))))
+        self.source_list.configure(
+            height=max(1, min(6, len(self._source_match_values)))
+        )
         self.root.after_idle(self._on_form_configure)
 
     def _source_focus_suggestions(self, _event=None):
@@ -1783,50 +1966,36 @@ class CaptureApp:
 
         return None
 
+    def _apply_source_choice(self, index: int) -> str:
+        if index < 0 or index >= len(self._source_match_values):
+            return "break"
+
+        kind, value = self._source_match_values[index]
+        if kind == "add":
+            value = self._save_custom_source(value)
+
+        self.source_var.set(value)
+        self._ensure_draft_started()
+        self._suppress_source_focus_once = True
+        self._hide_source_suggestions()
+        self.source_entry.focus_set()
+        self.source_entry.icursor("end")
+        return "break"
+
     def _source_click(self, event) -> str:
         if self.source_list.size() <= 0:
             return "break"
 
         index = self.source_list.nearest(event.y)
-
-        if index < 0 or index >= self.source_list.size():
-            return "break"
-
-        value = self._source_match_values[index]
-        self.source_var.set(value)
-        self._ensure_draft_started()
-
-        # Close the suggestions and keep them closed after the chosen value
-        # receives focus again.
-        self._suppress_source_focus_once = True
-        self._hide_source_suggestions()
-        self.source_entry.focus_set()
-        self.source_entry.icursor("end")
-
-        return "break"
+        return self._apply_source_choice(index)
 
     def _source_choose(self, _event=None) -> str | None:
+        if self.source_list.size() <= 0:
+            return None
+
         selection = self.source_list.curselection()
-
-        if selection:
-            index = selection[0]
-        else:
-            index = self.source_list.index("active")
-            if self.source_list.size() <= 0:
-                return None
-
-        value = self._source_match_values[index]
-        self.source_var.set(value)
-        self._ensure_draft_started()
-
-        # Keyboard selection should behave exactly like mouse selection:
-        # once chosen, the suggestion list disappears.
-        self._suppress_source_focus_once = True
-        self._hide_source_suggestions()
-        self.source_entry.focus_set()
-        self.source_entry.icursor("end")
-
-        return "break"
+        index = selection[0] if selection else self.source_list.index("active")
+        return self._apply_source_choice(index)
 
     def _hide_source_suggestions(self) -> None:
         if self._source_open:
@@ -1874,6 +2043,7 @@ class CaptureApp:
                     self.work_mode_var.get().strip(),
                     self.url_var.get().strip(),
                     self.source_var.get().strip(),
+                    self.applicant_count_var.get().strip(),
                     self.description.get("1.0", "end-1c").strip(),
                     self.notes.get("1.0", "end-1c").strip(),
                 )
@@ -1913,7 +2083,13 @@ class CaptureApp:
         try:
             self.company_var.set(str(payload.get("company") or ""))
             self.title_var.set(str(payload.get("job_title") or ""))
-            self.location_var.set(str(payload.get("location") or ""))
+            self._location_raw_value = str(
+                payload.get("location_raw")
+                or payload.get("location")
+                or ""
+            )
+            recovered_location = normalize_location(self._location_raw_value)
+            self.location_var.set(str(recovered_location.get("display") or ""))
             work_mode = str(payload.get("work_mode") or "")
             if work_mode not in {"", "Onsite", "Hybrid", "Remote"}:
                 work_mode = ""
@@ -1921,6 +2097,10 @@ class CaptureApp:
             self._refresh_work_mode_buttons()
             self.url_var.set(str(payload.get("url") or ""))
             self.source_var.set(str(payload.get("source") or ""))
+            applicant_count = payload.get("applicant_count")
+            self.applicant_count_var.set(
+                "" if applicant_count in (None, "") else str(applicant_count)
+            )
 
             status = str(payload.get("status") or "Saved")
             if status not in STATUSES:
@@ -1969,15 +2149,24 @@ class CaptureApp:
         self.root.after_idle(self._autosave_capture_draft)
 
     def payload(self) -> dict:
+        current_location = self.location_var.get().strip()
+        raw_location = self._location_raw_value or current_location
+        location = normalize_location(raw_location)
+        display_location = str(location.get("display") or current_location)
+        if display_location and display_location != self.location_var.get():
+            self.location_var.set(display_location)
+
         return {
             "company": self.company_var.get().strip(),
             "job_title": self.title_var.get().strip(),
-            "location": self.location_var.get().strip(),
+            "location": display_location,
+            "location_raw": raw_location,
             "work_mode": self._canonical_work_mode(self.work_mode_var.get()),
             "status": self.status_var.get().strip() or "Saved",
             "url": self.url_var.get().strip(),
             "description": self.description.get("1.0", "end-1c").strip(),
             "source": self.source_var.get().strip(),
+            "applicant_count": self._applicant_count_value(),
             "rating": self.rating,
             "notes": self.notes.get("1.0", "end-1c").strip(),
             "date_saved": (
@@ -1990,10 +2179,12 @@ class CaptureApp:
         self.company_var.set("")
         self.title_var.set("")
         self.location_var.set("")
+        self._location_raw_value = ""
         self.work_mode_var.set("")
         self._refresh_work_mode_buttons()
         self.url_var.set("")
         self.source_var.set("")
+        self.applicant_count_var.set("")
         self.status_var.set("Saved")
 
         self.description.delete("1.0", "end")
@@ -2025,6 +2216,26 @@ class CaptureApp:
                 parent=self.root,
             )
             return
+
+        source_value = str(data.get("source") or "").strip()
+        if source_value and not is_known_source(
+            source_value,
+            self._all_source_options(),
+        ):
+            if messagebox.askyesno(
+                "JAM",
+                (
+                    f'"{source_value}" is not in your Source list. '
+                    "Add it to future suggestions?"
+                    if self.language != "fr"
+                    else (
+                        f'"{source_value}" ne figure pas dans votre liste de sources. '
+                        "L’ajouter aux suggestions futures ?"
+                    )
+                ),
+                parent=self.root,
+            ):
+                self._save_custom_source(source_value)
 
         try:
             self.repo.create(data)

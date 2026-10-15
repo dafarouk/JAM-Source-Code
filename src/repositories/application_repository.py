@@ -7,6 +7,10 @@ from typing import Iterable
 
 from database import connection, utc_now
 from services.url_utils import normalize_job_url
+from services.application_metadata_service import (
+    normalize_applicant_count,
+    normalize_location,
+)
 
 STATUSES_THAT_IMPLY_APPLIED = {
     "Applied", "Interviewing", "Offer", "Accepted", "Rejected", "Withdrawn"
@@ -28,10 +32,12 @@ def _number(value):
 
 class ApplicationRepository:
     FIELDS = (
-        "company", "job_title", "description", "url", "location", "work_mode", "status",
-        "rating", "notes", "contact_name", "contact_url", "source", "salary_text",
-        "salary_min", "salary_max", "salary_currency", "salary_period", "salary_basis",
-        "date_saved", "date_applied", "updated_at", "match_score", "analysis_json",
+        "company", "job_title", "description", "url", "location", "location_raw",
+        "location_city", "location_region", "location_country", "location_lat", "location_lon",
+        "applicant_count", "work_mode", "status", "rating", "notes", "contact_name",
+        "contact_url", "source", "salary_text", "salary_min", "salary_max",
+        "salary_currency", "salary_period", "salary_basis", "date_saved", "date_applied",
+        "updated_at", "match_score", "analysis_json",
     )
 
     def list_all(self) -> list[dict]:
@@ -107,16 +113,36 @@ class ApplicationRepository:
         if not date_applied and status in STATUSES_THAT_IMPLY_APPLIED:
             date_applied = now
 
+        notes = str(payload.get("notes") or "").strip()
+        raw_location = str(
+            payload.get("location_raw")
+            or payload.get("location")
+            or ""
+        ).strip()
+        location = normalize_location(raw_location)
+        applicant_count = normalize_applicant_count(
+            payload.get("applicant_count"),
+            notes=notes,
+            infer_when_missing="applicant_count" not in payload,
+        )
+
         data = {
             "company": str(payload.get("company") or "").strip(),
             "job_title": str(payload.get("job_title") or "").strip(),
             "description": str(payload.get("description") or "").strip(),
             "url": normalize_job_url(payload.get("url")),
-            "location": str(payload.get("location") or "").strip(),
+            "location": str(location["display"] or "").strip(),
+            "location_raw": raw_location,
+            "location_city": str(location["city"] or ""),
+            "location_region": str(location["region"] or ""),
+            "location_country": str(location["country"] or ""),
+            "location_lat": location["lat"],
+            "location_lon": location["lon"],
+            "applicant_count": applicant_count,
             "work_mode": str(payload.get("work_mode") or "").strip(),
             "status": status,
             "rating": max(0, min(5, int(payload.get("rating") or 0))),
-            "notes": str(payload.get("notes") or "").strip(),
+            "notes": notes,
             "contact_name": str(payload.get("contact_name") or "").strip(),
             "contact_url": str(payload.get("contact_url") or "").strip(),
             "source": str(payload.get("source") or "").strip(),
@@ -161,6 +187,38 @@ class ApplicationRepository:
         payload = dict(payload)
         if "url" in payload:
             payload["url"] = normalize_job_url(payload.get("url"))
+
+        if "location" in payload or "location_raw" in payload:
+            submitted_location = str(payload.get("location") or "").strip()
+            current_display = str(current.get("location") or "").strip()
+            current_raw = str(current.get("location_raw") or "").strip()
+
+            if "location_raw" in payload:
+                raw_location = str(payload.get("location_raw") or "").strip()
+            elif submitted_location == current_display and current_raw:
+                raw_location = current_raw
+            else:
+                raw_location = submitted_location
+
+            location = normalize_location(raw_location)
+            payload.update(
+                {
+                    "location": str(location["display"] or "").strip(),
+                    "location_raw": raw_location,
+                    "location_city": str(location["city"] or ""),
+                    "location_region": str(location["region"] or ""),
+                    "location_country": str(location["country"] or ""),
+                    "location_lat": location["lat"],
+                    "location_lon": location["lon"],
+                }
+            )
+
+        if "applicant_count" in payload:
+            payload["applicant_count"] = normalize_applicant_count(
+                payload.get("applicant_count"),
+                notes=payload.get("notes", current.get("notes", "")),
+                infer_when_missing=False,
+            )
 
         for field in self.FIELDS:
             if field in ("updated_at", "date_applied"):

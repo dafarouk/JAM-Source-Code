@@ -50,6 +50,7 @@ from services.settings_service import SettingsService
 from services.saved_view_service import SavedViewService
 from services.application_tracking_service import ApplicationTrackingService
 from services.calendar_service import CalendarService
+from services.application_metadata_service import normalize_location
 from updater import Updater
 
 
@@ -491,6 +492,12 @@ class JamApi:
         try:
             self._updater.acknowledge_completed_update()
             return self._ok()
+        except Exception as exc:
+            return self._error(exc)
+
+    def normalize_location_value(self, value: str) -> dict:
+        try:
+            return self._ok(location=normalize_location(value))
         except Exception as exc:
             return self._error(exc)
 
@@ -964,6 +971,8 @@ $dialog.Dispose()
                 "notify_upcoming_week",
                 "notify_inactivity",
                 "tutorial_completed",
+                "custom_sources",
+                "pipeline_zoom",
             }
 
             if key not in allowed:

@@ -6,11 +6,15 @@ from pathlib import Path
 
 from config import APP_VERSION, RECOVERY_DIR, ensure_runtime_dirs
 from database import connection, utc_now
+from services.application_metadata_service import (
+    infer_applicant_count,
+    normalize_location,
+)
 
 
 class ProjectService:
     FORMAT = "JAM_PROJECT"
-    FORMAT_VERSION = 3
+    FORMAT_VERSION = 4
     RECOVERY_FORMAT = "JAM_PROJECT_RECOVERY"
 
     def __init__(self) -> None:
@@ -134,6 +138,13 @@ class ProjectService:
                 "description",
                 "url",
                 "location",
+                "location_raw",
+                "location_city",
+                "location_region",
+                "location_country",
+                "location_lat",
+                "location_lon",
+                "applicant_count",
                 "work_mode",
                 "status",
                 "rating",
@@ -160,6 +171,13 @@ class ProjectService:
                 "description": "",
                 "url": "",
                 "location": "",
+                "location_raw": "",
+                "location_city": "",
+                "location_region": "",
+                "location_country": "",
+                "location_lat": None,
+                "location_lon": None,
+                "applicant_count": None,
                 "work_mode": "",
                 "status": "Saved",
                 "rating": 0,
@@ -181,7 +199,33 @@ class ProjectService:
             }
 
             for row in applications:
-                values = [row.get(column, app_defaults.get(column)) for column in app_columns]
+                prepared = dict(row)
+                raw_location = str(
+                    prepared.get("location_raw")
+                    or prepared.get("location")
+                    or ""
+                ).strip()
+                location = normalize_location(raw_location)
+                prepared.update(
+                    {
+                        "location": location["display"],
+                        "location_raw": raw_location,
+                        "location_city": location["city"],
+                        "location_region": location["region"],
+                        "location_country": location["country"],
+                        "location_lat": location["lat"],
+                        "location_lon": location["lon"],
+                    }
+                )
+                if prepared.get("applicant_count") in (None, ""):
+                    prepared["applicant_count"] = infer_applicant_count(
+                        prepared.get("notes")
+                    )
+
+                values = [
+                    prepared.get(column, app_defaults.get(column))
+                    for column in app_columns
+                ]
                 placeholders = ",".join("?" for _ in app_columns)
                 conn.execute(
                     f"INSERT INTO applications ({','.join(app_columns)}) VALUES ({placeholders})",

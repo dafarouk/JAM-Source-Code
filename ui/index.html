@@ -145,6 +145,12 @@
                 </div>
               </th>
 
+              <th data-column="applicant_count">
+                <div class="th-shell">
+                  <button class="th-label sortable" data-sort="applicant_count">Applicants <span class="sort-indicator"></span></button>
+                </div>
+              </th>
+
               <th class="delete-col"></th>
             </tr>
           </thead>
@@ -166,6 +172,11 @@
           <span class="eyebrow">PIPELINE</span>
           <h2>Your application flow</h2>
           <p class="pipeline-hint">Hold the left mouse button and drag the board to move left, right, up or down.</p>
+        </div>
+        <div class="pipeline-zoom-controls" aria-label="Pipeline zoom">
+          <button id="pipelineZoomOut" class="pipeline-zoom-btn" type="button" title="Zoom out">−</button>
+          <strong id="pipelineZoomLabel">100%</strong>
+          <button id="pipelineZoomIn" class="pipeline-zoom-btn" type="button" title="Zoom in">+</button>
         </div>
       </div>
       <div id="pipelineBoard" class="pipeline-board" title="Click and drag to navigate"></div>

@@ -11,6 +11,13 @@ class Application:
     description: str = ""
     url: str = ""
     location: str = ""
+    location_raw: str = ""
+    location_city: str = ""
+    location_region: str = ""
+    location_country: str = ""
+    location_lat: Optional[float] = None
+    location_lon: Optional[float] = None
+    applicant_count: Optional[int] = None
     work_mode: str = ""
     status: str = "Saved"
     rating: int = 0

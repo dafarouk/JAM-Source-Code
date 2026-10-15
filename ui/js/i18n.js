@@ -239,6 +239,7 @@
     'Location': 'Localisation',
     'Date saved': 'Date d’enregistrement',
     'Source': 'Source',
+    'Applicants': 'Candidats',
 
     'Filter company': 'Filtrer l’entreprise',
     'Filter job title': 'Filtrer le poste',
@@ -712,6 +713,8 @@
     'Skip for now': 'Ignorer pour le moment',
     'Add CV': 'Ajouter un CV',
     'Company careers page': 'Page carrières de l’entreprise',
+    'Company Website': 'Site de l’entreprise',
+    'Direct Contact': 'Contact direct',
     'Recruiter / Agency': 'Recruteur / Agence',
     'Referral': 'Cooptation',
     'School / Alumni': 'École / Alumni'

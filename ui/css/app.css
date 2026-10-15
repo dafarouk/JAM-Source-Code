@@ -4916,3 +4916,186 @@ body.jam-tutorial-active {
     padding: 22px 20px !important;
   }
 }
+
+
+/* =========================================================
+   JAM V1.1 APPLICATION METADATA + PIPELINE ZOOM
+   ========================================================= */
+.source-suggestion {
+  min-height: 36px;
+  border: 1px solid transparent;
+  transition: border-color .12s ease, background .12s ease, transform .12s ease;
+}
+
+.source-suggestion:hover,
+.source-suggestion.active {
+  transform: translateX(2px);
+}
+
+.source-suggestion-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 4px rgba(188,150,93,.09);
+}
+
+.source-suggestion-add {
+  margin-top: 3px;
+  border-color: rgba(16,185,129,.22);
+  color: #8be9c7;
+  background: rgba(16,185,129,.06);
+}
+
+.source-suggestion-add:hover,
+.source-suggestion-add.active {
+  color: #07140f;
+  background: #63d8ad;
+}
+
+.source-suggestion-plus {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-weight: 900;
+}
+
+.location-normalized-hint {
+  min-height: 14px;
+  color: #7adbb8;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.applicant-editor-field {
+  position: relative;
+}
+
+.applicant-editor-meter {
+  min-height: 26px;
+  padding-top: 2px;
+}
+
+.applicant-meter {
+  display: grid;
+  grid-template-columns:auto minmax(62px,1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: var(--applicant-color);
+}
+
+.applicant-meter strong {
+  min-width: 30px;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.applicant-meter-track {
+  position: relative;
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+}
+
+.applicant-meter-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--applicant-width);
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--applicant-color);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--applicant-color) 45%, transparent);
+}
+
+.applicant-meter.compact {
+  min-width: 100px;
+  max-width: 130px;
+  grid-template-columns:30px minmax(56px,1fr);
+  gap: 6px;
+}
+
+.applicant-meter.compact .applicant-meter-track {
+  height: 5px;
+}
+
+.applicant-count-cell {
+  min-width: 126px;
+}
+
+.applicant-count-empty {
+  color: #657080;
+}
+
+.pipeline-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px;
+  border: 1px solid rgba(188,150,93,.2);
+  border-radius: 12px;
+  background: rgba(188,150,93,.055);
+}
+
+.pipeline-zoom-controls strong {
+  min-width: 48px;
+  color: var(--gold2);
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-zoom-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 9px;
+  color: #e7e9ed;
+  background: #121a26;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.pipeline-zoom-btn:hover {
+  border-color: rgba(208,170,112,.55);
+  color: #17120c;
+  background: var(--gold2);
+}
+
+.pipeline-board {
+  --pipeline-zoom: 1;
+  grid-auto-columns: minmax(
+    calc(250px * var(--pipeline-zoom)),
+    calc(300px * var(--pipeline-zoom))
+  );
+}
+
+.pipeline-head {
+  padding: calc(14px * var(--pipeline-zoom)) calc(15px * var(--pipeline-zoom));
+  font-size: calc(14px * var(--pipeline-zoom));
+}
+
+.pipeline-items {
+  gap: calc(9px * var(--pipeline-zoom));
+  padding: calc(10px * var(--pipeline-zoom));
+}
+
+.pipeline-card {
+  border-radius: calc(12px * var(--pipeline-zoom));
+  padding: calc(12px * var(--pipeline-zoom));
+  font-size: calc(14px * var(--pipeline-zoom));
+}
+
+.pipeline-card small {
+  font-size: calc(11px * var(--pipeline-zoom));
+}

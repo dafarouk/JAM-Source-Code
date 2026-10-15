@@ -6,8 +6,9 @@ from datetime import datetime
 from typing import Iterator
 
 from config import DB_PATH, ensure_runtime_dirs
+from services.application_metadata_service import infer_applicant_count, normalize_location
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def utc_now() -> str:
@@ -186,6 +187,53 @@ def init_database() -> None:
         _ensure_column(conn, "applications", "salary_currency", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(conn, "applications", "salary_period", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(conn, "applications", "salary_basis", "TEXT NOT NULL DEFAULT ''")
+
+        # v1.1 application metadata: dedicated applicant competition plus
+        # normalized location fields kept alongside the original pasted text.
+        _ensure_column(
+            conn,
+            "applications",
+            "applicant_count",
+            "INTEGER CHECK(applicant_count IS NULL OR applicant_count >= 0)",
+        )
+        _ensure_column(conn, "applications", "location_raw", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "applications", "location_city", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "applications", "location_region", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "applications", "location_country", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "applications", "location_lat", "REAL")
+        _ensure_column(conn, "applications", "location_lon", "REAL")
+
+        # Backfill existing applications without deleting the user's original
+        # location or notes. LinkedIn applicant text in Notes is recognized
+        # conservatively and copied into applicant_count when possible.
+        rows = conn.execute(
+            "SELECT id, location, location_raw, location_city, location_country, "
+            "location_lat, location_lon, applicant_count, notes FROM applications"
+        ).fetchall()
+        for row in rows:
+            raw_location = str(row["location_raw"] or row["location"] or "").strip()
+            location = normalize_location(raw_location)
+            applicant_count = row["applicant_count"]
+            if applicant_count is None:
+                applicant_count = infer_applicant_count(row["notes"])
+
+            conn.execute(
+                "UPDATE applications SET "
+                "location = ?, location_raw = ?, location_city = ?, location_region = ?, "
+                "location_country = ?, location_lat = ?, location_lon = ?, applicant_count = ? "
+                "WHERE id = ?",
+                (
+                    location["display"],
+                    raw_location,
+                    location["city"],
+                    location["region"],
+                    location["country"],
+                    location["lat"],
+                    location["lon"],
+                    applicant_count,
+                    row["id"],
+                ),
+            )
 
         # Batch 3 migration: preserve the old single contact / notes fields as
         # the first entries of the richer tracking history. The NOT EXISTS

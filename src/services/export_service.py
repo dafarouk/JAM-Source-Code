@@ -57,6 +57,7 @@ EXPORT_FR = {
     "Location": "Localisation",
     "Work Mode": "Mode de travail",
     "Source": "Source",
+    "Applicants": "Candidats",
     "Date Applied": "Date de candidature",
     "Contact": "Contact",
     "Contact Link": "Lien du contact",
@@ -294,7 +295,7 @@ class ExportService:
         # ------------------------------------------------------------
         # HERO HEADER
         # ------------------------------------------------------------
-        ws.merge_cells("A1:N2")
+        ws.merge_cells("A1:O2")
 
         hero = ws["A1"]
         hero.value = "JAM — Job Application Manager"
@@ -314,7 +315,7 @@ class ExportService:
         )
 
         # Fill the complete merged banner.
-        for row in ws["A1:N2"]:
+        for row in ws["A1:O2"]:
             for cell in row:
                 cell.fill = PatternFill(
                     "solid",
@@ -342,7 +343,7 @@ class ExportService:
 
         self._center_merged(
             ws,
-            "A3:N3",
+            "A3:O3",
             self._t("APPLICATIONS EXPORT"),
             font=Font(
                 name="Aptos",
@@ -356,7 +357,7 @@ class ExportService:
 
         self._center_merged(
             ws,
-            "A4:N4",
+            "A4:O4",
             (
                 (
                     f"{row_count} candidature"
@@ -386,7 +387,7 @@ class ExportService:
         # ------------------------------------------------------------
         self._center_merged(
             ws,
-            "A6:N6",
+            "A6:O6",
             self._t("FILTERS APPLIED"),
             font=Font(
                 name="Aptos",
@@ -451,6 +452,7 @@ class ExportService:
             self._t("Location"),
             self._t("Work Mode"),
             self._t("Source"),
+            self._t("Applicants"),
             self._t("Date Applied"),
             self._t("Contact"),
             self._t("Contact Link"),
@@ -535,6 +537,7 @@ class ExportService:
                 row.get("location", ""),
                 self._work_mode_label(row.get("work_mode", "")),
                 row.get("source", ""),
+                row.get("applicant_count"),
                 date_applied,
                 row.get("contact_name", ""),
                 row.get("contact_url", ""),
@@ -585,6 +588,7 @@ class ExportService:
                     8,
                     9,
                     10,
+                    11,
                 }:
                     horizontal = "center"
                 else:
@@ -599,7 +603,7 @@ class ExportService:
             # Real Excel date formatting.
             for date_col in (
                 1,
-                10,
+                11,
             ):
                 date_cell = ws.cell(
                     row=row_idx,
@@ -668,8 +672,8 @@ class ExportService:
 
             # Clickable URLs.
             for url_col in (
-                12,
                 13,
+                14,
             ):
                 url_cell = ws.cell(
                     row=row_idx,
@@ -713,6 +717,7 @@ class ExportService:
             22,
             16,
             24,
+            13,
             21,
             22,
             31,
@@ -736,7 +741,7 @@ class ExportService:
         # Standard worksheet filter only.
         # No Structured Table is created, avoiding Excel repair warnings.
         ws.auto_filter.ref = (
-            f"A{header_row}:N{last_row}"
+            f"A{header_row}:O{last_row}"
         )
 
         ws.freeze_panes = (
@@ -762,7 +767,7 @@ class ExportService:
             f"{header_row}:{header_row}"
         )
         ws.print_area = (
-            f"A1:N{last_row}"
+            f"A1:O{last_row}"
         )
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.page_setup.fitToWidth = 1
@@ -1304,6 +1309,7 @@ class ExportService:
             self._t("Rating"),
             self._t("Location"),
             self._t("Source"),
+            self._t("Applicants"),
             self._t("Applied"),
         ]
 
@@ -1394,6 +1400,11 @@ class ExportService:
                     "source",
                     "",
                 ),
+                (
+                    "—"
+                    if row.get("applicant_count") in (None, "")
+                    else str(row.get("applicant_count"))
+                ),
                 applied_text,
             ]
 
@@ -1419,6 +1430,7 @@ class ExportService:
                 22 * mm,
                 34 * mm,
                 27 * mm,
+                17 * mm,
                 20 * mm,
             ],
         )

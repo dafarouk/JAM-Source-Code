@@ -1630,6 +1630,19 @@
 
       if (!(event.ctrlKey || event.metaKey)) return;
 
+      const editableTarget =
+        event.target?.matches?.(
+          'input, textarea, [contenteditable="true"]'
+        );
+
+      if (
+        editableTarget &&
+        (key === 'z' || key === 'y')
+      ) {
+        // Preserve Chromium's native undo/redo inside every editable field.
+        return;
+      }
+
       if (key === 'n' && !event.shiftKey && !event.altKey) {
         event.preventDefault();
         openJobModal();

@@ -68,7 +68,7 @@ const SOURCES = [
   'Ashby',
   'SAP SuccessFactors',
   'Oracle Careers',
-  'Company careers page',
+  'Company Website',
 
   // MENA / wider region
   'Bayt',
@@ -78,20 +78,77 @@ const SOURCES = [
   // Other channels
   'Recruiter / Agency',
   'Referral',
+  'Direct Contact',
   'School / Alumni',
   'Other'
 ];
 
 const FEATURED_SOURCES = [
   'LinkedIn',
-  'Keejob',
-  'Tanitjobs',
+  'Company Website',
   'Indeed',
   'Welcome to the Jungle',
-  'JobTeaser',
-  'Glassdoor',
-  'Bayt'
+  'APEC',
+  'France Travail',
+  'Keejob',
+  'Tanitjobs'
 ];
+
+const SOURCE_ALIASES = {
+  'Company Website': [
+    'web',
+    'website',
+    'site',
+    'site web',
+    'company site',
+    'company website',
+    'company career',
+    'company careers',
+    'company careers page',
+    'career page',
+    'careers page',
+    'corporate website',
+    'page carriere',
+    'page carrieres'
+  ],
+  'Welcome to the Jungle': [
+    'wttj',
+    'welcome',
+    'jungle',
+    'welcome kit',
+    'welcomekit'
+  ],
+  'France Travail': [
+    'pole emploi',
+    'pôle emploi'
+  ],
+  'Recruiter / Agency': [
+    'recruiter',
+    'agency',
+    'recruitment agency',
+    'cabinet',
+    'recruteur'
+  ],
+  Referral: [
+    'referral',
+    'cooptation',
+    'employee referral'
+  ],
+  'Direct Contact': [
+    'direct',
+    'direct contact',
+    'contact direct',
+    'recruiter contact'
+  ],
+  LinkedIn: [
+    'linkedin',
+    'linked in'
+  ],
+  HelloWork: [
+    'hellowork',
+    'hello work'
+  ]
+};
 
 const CURRENCIES = [
   { code: 'EUR', name: 'Euro', flag: '🇪🇺', countries: 'Eurozone France Germany Italy Spain Belgium Netherlands Portugal Austria Ireland Finland Greece Luxembourg' },
@@ -228,6 +285,42 @@ function ratingStars(value) {
     : '—';
 }
 
+function applicantMeterColor(value) {
+  const count = Number(value);
+
+  if (!Number.isFinite(count) || count < 0) {
+    return '#6B7280';
+  }
+
+  if (count < 20) return '#047857';
+  if (count < 40) return '#34D399';
+  if (count < 60) return '#EAB308';
+  if (count < 80) return '#F97316';
+  if (count < 100) return '#EF4444';
+  return '#B91C1C';
+}
+
+function applicantMeterMarkup(value, compact = false) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return '<span class="applicant-count-empty">—</span>';
+  }
+
+  const count = Math.max(0, Number(value) || 0);
+  const color = applicantMeterColor(count);
+  const width = Math.max(5, Math.min(100, count));
+
+  return `
+    <span class="applicant-meter ${compact ? 'compact' : ''}" style="--applicant-color:${color};--applicant-width:${width}%">
+      <strong>${escapeHtml(String(count))}</strong>
+      <span class="applicant-meter-track"><i></i></span>
+    </span>
+  `;
+}
+
 function parseDate(value) {
   const date = new Date(value || '');
 
@@ -302,20 +395,218 @@ function scoreBucket(score) {
   return '0-39';
 }
 
+function parseCustomSources() {
+  try {
+    const parsed = JSON.parse(
+      state.settings.custom_sources || '[]'
+    );
+
+    return Array.isArray(parsed)
+      ? parsed
+          .map(value => String(value || '').trim())
+          .filter(Boolean)
+      : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function sourceOptions() {
+  const seen = new Set();
+  const result = [];
+
+  [
+    ...SOURCES,
+    ...parseCustomSources(),
+    ...state.applications.map(
+      app => app.source
+    )
+  ].forEach(value => {
+    const text = String(value || '').trim();
+    const key = normalizeText(text);
+
+    if (!text || !key || seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    result.push(text);
+  });
+
+  return result;
+}
+
+function isKnownSource(value) {
+  const key = normalizeText(value);
+
+  return Boolean(
+    key &&
+    sourceOptions().some(
+      source =>
+        normalizeText(source) === key
+    )
+  );
+}
+
 function sourceMatches(query) {
   const value = normalizeText(query);
+  const options = sourceOptions();
 
   if (!value) {
-    return FEATURED_SOURCES.slice();
+    const featured = new Set(
+      FEATURED_SOURCES.map(
+        source => normalizeText(source)
+      )
+    );
+
+    return options
+      .filter(
+        source =>
+          featured.has(
+            normalizeText(source)
+          )
+      )
+      .slice(0, 10);
   }
 
-  return SOURCES
-    .filter(
-      source =>
-        normalizeText(source)
-          .startsWith(value)
+  const tokens =
+    value.split(/\s+/).filter(Boolean);
+
+  return options
+    .map(
+      (source, index) => {
+        const normalized =
+          normalizeText(source);
+
+        const aliases =
+          (
+            SOURCE_ALIASES[source] ||
+            []
+          )
+            .map(normalizeText);
+
+        const words =
+          normalized.split(/\s+/);
+
+        let score = null;
+
+        if (normalized === value) {
+          score = 0;
+        } else if (
+          normalized.startsWith(value)
+        ) {
+          score = 1;
+        } else if (
+          words.some(
+            word =>
+              word.startsWith(value)
+          )
+        ) {
+          score = 2;
+        } else if (
+          aliases.some(
+            alias =>
+              alias === value ||
+              alias.startsWith(value)
+          )
+        ) {
+          score = 3;
+        } else if (
+          normalized.includes(value)
+        ) {
+          score = 4;
+        } else if (
+          aliases.some(
+            alias =>
+              alias.includes(value)
+          )
+        ) {
+          score = 5;
+        } else {
+          const haystack =
+            [
+              normalized,
+              ...aliases
+            ].join(' ');
+
+          if (
+            tokens.length &&
+            tokens.every(
+              token =>
+                haystack.includes(token)
+            )
+          ) {
+            score = 6;
+          }
+        }
+
+        return {
+          source,
+          index,
+          score
+        };
+      }
     )
-    .slice(0, 10);
+    .filter(
+      item =>
+        item.score !== null
+    )
+    .sort(
+      (a, b) =>
+        (
+          a.score - b.score
+        ) ||
+        (
+          a.index - b.index
+        )
+    )
+    .slice(0, 10)
+    .map(
+      item =>
+        item.source
+    );
+}
+
+async function persistCustomSource(value) {
+  const text = String(value || '').trim();
+
+  if (!text || isKnownSource(text)) {
+    return text;
+  }
+
+  const sources =
+    parseCustomSources();
+
+  sources.push(text);
+
+  const unique = [];
+  const seen = new Set();
+
+  sources.forEach(source => {
+    const clean = String(source || '').trim();
+    const key = normalizeText(clean);
+
+    if (!clean || !key || seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    unique.push(clean);
+  });
+
+  const serialized =
+    JSON.stringify(unique);
+
+  await api(
+    'save_setting',
+    'custom_sources',
+    serialized
+  );
+
+  state.settings.custom_sources =
+    serialized;
+
+  return text;
 }
 
 async function api(method, ...args) {
@@ -799,6 +1090,29 @@ function getFilteredApplications() {
           }
 
           if (
+            column === 'applicant_count'
+          ) {
+            const av =
+              a.applicant_count === null ||
+              a.applicant_count === undefined ||
+              a.applicant_count === ''
+                ? -1
+                : Number(a.applicant_count);
+
+            const bv =
+              b.applicant_count === null ||
+              b.applicant_count === undefined ||
+              b.applicant_count === ''
+                ? -1
+                : Number(b.applicant_count);
+
+            return (
+              (av - bv) *
+              multiplier
+            );
+          }
+
+          if (
             column === 'date_saved'
           ) {
             const av =
@@ -969,6 +1283,13 @@ function renderTable() {
               )}
             </td>
 
+            <td class="applicant-count-cell">
+              ${applicantMeterMarkup(
+                app.applicant_count,
+                true
+              )}
+            </td>
+
             <td class="delete-col">
               <button
                 class="row-delete"
@@ -1034,6 +1355,7 @@ function cycleSort(column) {
     [
       'match_score',
       'rating',
+      'applicant_count',
       'date_saved'
     ].includes(column)
   ) {
@@ -1877,6 +2199,113 @@ function renderPipeline() {
     .join('');
 }
 
+const PIPELINE_ZOOM_MIN = 0.7;
+const PIPELINE_ZOOM_MAX = 1.3;
+const PIPELINE_ZOOM_STEP = 0.1;
+
+function clampPipelineZoom(value) {
+  const numeric = Number(value);
+  const safe = Number.isFinite(numeric)
+    ? numeric
+    : 1;
+
+  return Math.max(
+    PIPELINE_ZOOM_MIN,
+    Math.min(
+      PIPELINE_ZOOM_MAX,
+      Math.round(safe * 10) / 10
+    )
+  );
+}
+
+function applyPipelineZoom(value) {
+  const zoom =
+    clampPipelineZoom(value);
+
+  const board =
+    $('#pipelineBoard');
+
+  if (board) {
+    board.style.setProperty(
+      '--pipeline-zoom',
+      String(zoom)
+    );
+  }
+
+  const label =
+    $('#pipelineZoomLabel');
+
+  if (label) {
+    label.textContent =
+      `${Math.round(zoom * 100)}%`;
+  }
+
+  return zoom;
+}
+
+async function changePipelineZoom(delta) {
+  const current =
+    clampPipelineZoom(
+      state.settings.pipeline_zoom || 1
+    );
+
+  const next =
+    clampPipelineZoom(
+      current + delta
+    );
+
+  state.settings.pipeline_zoom =
+    String(next);
+
+  applyPipelineZoom(next);
+
+  try {
+    await api(
+      'save_setting',
+      'pipeline_zoom',
+      String(next)
+    );
+  } catch (error) {
+    toast(
+      error.message,
+      'error'
+    );
+  }
+}
+
+function setupPipelineZoom() {
+  const minus =
+    $('#pipelineZoomOut');
+
+  const plus =
+    $('#pipelineZoomIn');
+
+  if (!minus || !plus) return;
+
+  if (minus.dataset.zoomReady === '1') {
+    return;
+  }
+
+  minus.dataset.zoomReady = '1';
+  plus.dataset.zoomReady = '1';
+
+  minus.onclick =
+    () =>
+      changePipelineZoom(
+        -PIPELINE_ZOOM_STEP
+      );
+
+  plus.onclick =
+    () =>
+      changePipelineZoom(
+        PIPELINE_ZOOM_STEP
+      );
+
+  applyPipelineZoom(
+    state.settings.pipeline_zoom || 1
+  );
+}
+
 function setupPipelineDrag() {
   const board = $('#pipelineBoard');
   if (!board || board.dataset.dragReady === '1') return;
@@ -2109,6 +2538,9 @@ function renderAll() {
   renderRecentApplications();
   renderTable();
   renderPipeline();
+  applyPipelineZoom(
+    state.settings.pipeline_zoom || 1
+  );
   renderExportHistory();
   renderSettings();
 }
@@ -2219,7 +2651,26 @@ function jobFormBody(app = {}) {
             )
           }"
           autocomplete="off"
+          data-location-input
         >
+
+        <input
+          type="hidden"
+          name="location_raw"
+          value="${
+            escapeHtml(
+              app.location_raw ||
+              app.location ||
+              ''
+            )
+          }"
+          data-location-raw
+        >
+
+        <small
+          class="location-normalized-hint"
+          data-location-hint
+        ></small>
       </label>
 
       <label>
@@ -2412,7 +2863,7 @@ function jobFormBody(app = {}) {
               app.source || ''
             )
           }"
-          placeholder="LinkedIn, Keejob, Welcome to the Jungle..."
+          placeholder="LinkedIn, Company Website, Welcome to the Jungle..."
           autocomplete="off"
           data-source-input
         >
@@ -2423,6 +2874,35 @@ function jobFormBody(app = {}) {
           hidden
         ></div>
 
+      </div>
+
+      <div
+        class="job-editor-field job-editor-section applicant-editor-field"
+      >
+        <span>Applicants</span>
+
+        <input
+          class="control full draft-main"
+          name="applicant_count"
+          value="${
+            app.applicant_count === null ||
+            app.applicant_count === undefined
+              ? ''
+              : escapeHtml(
+                  String(app.applicant_count)
+                )
+          }"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          placeholder="e.g. 46"
+          data-applicant-input
+        >
+
+        <div
+          class="applicant-editor-meter"
+          data-applicant-meter
+        ></div>
       </div>
 
       <label>
@@ -2707,6 +3187,124 @@ function initializeJobEditorControls(
       markDraft();
     };
 
+  // LOCATION NORMALIZATION
+  const locationInput =
+    $('[data-location-input]', form);
+
+  const locationRawInput =
+    $('[data-location-raw]', form);
+
+  const locationHint =
+    $('[data-location-hint]', form);
+
+  const normalizeLocationField =
+    async () => {
+      const raw = String(
+        locationRawInput?.value ||
+        locationInput?.value ||
+        ''
+      ).trim();
+
+      if (!locationInput || !locationRawInput) {
+        return;
+      }
+
+      if (!raw) {
+        locationInput.value = '';
+        locationRawInput.value = '';
+        if (locationHint) locationHint.textContent = '';
+        return;
+      }
+
+      try {
+        const result =
+          await api(
+            'normalize_location_value',
+            raw
+          );
+
+        const location =
+          result.location || {};
+
+        const display = String(
+          location.display || raw
+        ).trim();
+
+        locationInput.value = display;
+
+        if (
+          locationHint &&
+          normalizeText(display) !==
+          normalizeText(raw)
+        ) {
+          locationHint.textContent =
+            `Normalized: ${display}`;
+        } else if (locationHint) {
+          locationHint.textContent = '';
+        }
+      } catch (_error) {
+        if (locationHint) locationHint.textContent = '';
+      }
+    };
+
+  if (locationInput && locationRawInput) {
+    locationInput.addEventListener(
+      'input',
+      () => {
+        locationRawInput.value =
+          locationInput.value;
+
+        if (locationHint) {
+          locationHint.textContent = '';
+        }
+      }
+    );
+
+    locationInput.addEventListener(
+      'blur',
+      normalizeLocationField
+    );
+  }
+
+  // APPLICANT COUNT
+  const applicantInput =
+    $('[data-applicant-input]', form);
+
+  const applicantMeter =
+    $('[data-applicant-meter]', form);
+
+  const refreshApplicantMeter =
+    () => {
+      if (!applicantMeter) return;
+
+      applicantMeter.innerHTML =
+        applicantMeterMarkup(
+          applicantInput?.value || ''
+        );
+    };
+
+  if (applicantInput) {
+    applicantInput.addEventListener(
+      'input',
+      () => {
+        const clean =
+          applicantInput.value.replace(
+            /\D+/g,
+            ''
+          );
+
+        if (applicantInput.value !== clean) {
+          applicantInput.value = clean;
+        }
+
+        refreshApplicantMeter();
+        markDraft();
+      }
+    );
+
+    refreshApplicantMeter();
+  }
+
   // SOURCE AUTOCOMPLETE
   const sourceInput =
     $(
@@ -2720,6 +3318,19 @@ function initializeJobEditorControls(
       form
     );
 
+  let sourceActiveIndex = -1;
+
+  const sourceAddLabel =
+    value => {
+      const language =
+        window.JAM_I18N?.language ||
+        'en';
+
+      return language === 'fr'
+        ? `Ajouter "${value}" aux sources`
+        : `Add "${value}" to sources`;
+    };
+
   const hideSourceMenu =
     () => {
       sourceMenu.hidden =
@@ -2727,61 +3338,121 @@ function initializeJobEditorControls(
 
       sourceMenu.innerHTML =
         '';
+
+      sourceActiveIndex = -1;
+    };
+
+  const sourceButtons =
+    () =>
+      $$('.source-suggestion', sourceMenu);
+
+  const paintSourceActive =
+    () => {
+      sourceButtons().forEach(
+        (button, index) => {
+          button.classList.toggle(
+            'active',
+            index === sourceActiveIndex
+          );
+        }
+      );
+    };
+
+  const chooseSourceButton =
+    async button => {
+      if (!button) return;
+
+      const addValue =
+        button.dataset.sourceAdd;
+
+      const value =
+        addValue ||
+        button.dataset.sourceChoice ||
+        '';
+
+      if (addValue) {
+        await persistCustomSource(
+          addValue
+        );
+      }
+
+      sourceInput.value = value;
+
+      hideSourceMenu();
+      markDraft();
+      sourceInput.focus();
+      sourceInput.setSelectionRange(
+        sourceInput.value.length,
+        sourceInput.value.length
+      );
     };
 
   const showSourceMenu =
     () => {
-      const matches =
-        sourceMatches(
-          sourceInput.value
-        );
+      const typed =
+        String(
+          sourceInput.value || ''
+        ).trim();
 
-      if (!matches.length) {
+      const matches =
+        sourceMatches(typed);
+
+      const canAdd =
+        Boolean(typed) &&
+        !isKnownSource(typed);
+
+      if (!matches.length && !canAdd) {
         hideSourceMenu();
         return;
       }
 
-      sourceMenu.innerHTML =
-        matches
-          .map(
-            source => `
-              <button
-                type="button"
-                class="source-suggestion"
-                data-source-choice="${
-                  escapeHtml(source)
-                }"
-              >
-                ${escapeHtml(source)}
-              </button>
-            `
-          )
-          .join('');
+      sourceMenu.innerHTML = [
+        ...matches.map(
+          source => `
+            <button
+              type="button"
+              class="source-suggestion"
+              data-source-choice="${
+                escapeHtml(source)
+              }"
+            >
+              <span class="source-suggestion-dot"></span>
+              <span>${escapeHtml(source)}</span>
+            </button>
+          `
+        ),
+        canAdd
+          ? `
+            <button
+              type="button"
+              class="source-suggestion source-suggestion-add"
+              data-source-add="${
+                escapeHtml(typed)
+              }"
+            >
+              <span class="source-suggestion-plus">+</span>
+              <span>${escapeHtml(sourceAddLabel(typed))}</span>
+            </button>
+          `
+          : ''
+      ].join('');
 
-      sourceMenu.hidden =
-        false;
+      sourceMenu.hidden = false;
+      sourceActiveIndex = -1;
 
-      $$(
-        '[data-source-choice]',
-        sourceMenu
-      ).forEach(
+      sourceButtons().forEach(
         button => {
           button.onclick =
-          () => {
-            sourceInput.value =
-              button.dataset.sourceChoice;
-
-            hideSourceMenu();
-
-            markDraft();
-
-            sourceInput.focus();
-
-            sourceInput.setSelectionRange(
-              sourceInput.value.length,
-              sourceInput.value.length
-            );
-          };
+            () => {
+              chooseSourceButton(button)
+                .catch(
+                  error =>
+                    toast(
+                      error.message,
+                      'error'
+                    )
+                );
+            };
         }
       );
     };
@@ -2802,10 +3473,59 @@ function initializeJobEditorControls(
   sourceInput.addEventListener(
     'keydown',
     event => {
-      if (
-        event.key === 'Escape'
-      ) {
+      if (event.key === 'Escape') {
         hideSourceMenu();
+        return;
+      }
+
+      if (
+        sourceMenu.hidden ||
+        !['ArrowDown', 'ArrowUp', 'Enter']
+          .includes(event.key)
+      ) {
+        return;
+      }
+
+      const buttons = sourceButtons();
+      if (!buttons.length) return;
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        sourceActiveIndex =
+          (sourceActiveIndex + 1) %
+          buttons.length;
+        paintSourceActive();
+        buttons[sourceActiveIndex]
+          .scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        sourceActiveIndex =
+          sourceActiveIndex <= 0
+            ? buttons.length - 1
+            : sourceActiveIndex - 1;
+        paintSourceActive();
+        buttons[sourceActiveIndex]
+          .scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      if (
+        event.key === 'Enter' &&
+        sourceActiveIndex >= 0
+      ) {
+        event.preventDefault();
+        chooseSourceButton(
+          buttons[sourceActiveIndex]
+        ).catch(
+          error =>
+            toast(
+              error.message,
+              'error'
+            )
+        );
       }
     }
   );
@@ -2860,6 +3580,15 @@ function readFormPayload(
     Number(
       data.rating || 0
     );
+
+  data.applicant_count =
+    String(
+      data.applicant_count || ''
+    ).trim() === ''
+      ? null
+      : Number(
+          data.applicant_count
+        );
 
   if (existing?.id) {
     data.id =
@@ -3075,6 +3804,29 @@ function openJobModal(app = null) {
           throw new Error(
             'Add at least a company or job title.'
           );
+        }
+
+        const sourceText =
+          String(
+            payload.source || ''
+          ).trim();
+
+        if (
+          sourceText &&
+          !isKnownSource(sourceText)
+        ) {
+          const addSource =
+            await confirmDialog(
+              'New source',
+              `"${sourceText}" is not in your Source list. Add it to future suggestions?`,
+              'Add source'
+            );
+
+          if (addSource) {
+            await persistCustomSource(
+              sourceText
+            );
+          }
         }
 
         await api(
@@ -4579,6 +5331,7 @@ function maybeShowOnboarding() {
 
 function bindEvents() {
   setupPipelineDrag();
+  setupPipelineZoom();
   setupCurrencyPicker();
   $$('.nav-item')
     .forEach(

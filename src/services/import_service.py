@@ -19,6 +19,10 @@ HEADER_ALIASES = {
     "location": {"location", "city", "ville", "lieu", "localisation"},
     "work_mode": {"work mode", "mode", "remote", "work type", "working mode", "mode de travail"},
     "source": {"source", "job board", "platform", "site", "website"},
+    "applicant_count": {
+        "applicants", "applicant count", "number of applicants", "people applied",
+        "candidates", "candidate count", "candidats", "nombre de candidats",
+    },
     "date_saved": {"date saved", "saved date", "date", "date added", "created", "created at"},
     "date_applied": {"date applied", "application date", "applied date", "date candidature"},
     "contact_name": {"contact", "contact name", "recruiter", "recruiter name", "rh", "hr contact"},
@@ -94,6 +98,15 @@ class ExcelImportService:
             return None
         return float(match.group(0).replace(",", "."))
 
+    @staticmethod
+    def _integer(value):
+        if value is None or str(value).strip() == "":
+            return None
+        match = re.search(r"\d+", str(value).replace(" ", ""))
+        if not match:
+            return None
+        return int(match.group(0))
+
     def _field_for_header(self, value) -> str | None:
         header = _norm(value)
         if not header:
@@ -134,6 +147,8 @@ class ExcelImportService:
                 payload[field] = self._score(raw)
             elif field in {"salary_min", "salary_max"}:
                 payload[field] = self._number(raw)
+            elif field == "applicant_count":
+                payload[field] = self._integer(raw)
             else:
                 payload[field] = self._value_to_text(raw)
         payload.setdefault("status", "Saved")
