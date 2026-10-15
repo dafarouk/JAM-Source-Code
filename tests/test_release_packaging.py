@@ -15,8 +15,8 @@ from config import (  # noqa: E402
 )
 
 
-def test_public_version_is_1_0_0() -> None:
-    assert APP_VERSION == "1.0.0"
+def test_public_version_is_1_0_1() -> None:
+    assert APP_VERSION == "1.0.1"
     assert GITHUB_REPOSITORY == "dafarouk/JAM"
 
 

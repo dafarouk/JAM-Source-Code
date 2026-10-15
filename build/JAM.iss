@@ -1,6 +1,6 @@
 #define MyAppName "JAM - Job Application Manager"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #endif
 #define MyAppPublisher "Farouk"
 #define MyAppURL "https://www.damergi.com"

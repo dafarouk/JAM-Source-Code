@@ -7,7 +7,7 @@ import sys
 
 APP_NAME = "JAM"
 APP_FULL_NAME = "JAM - Job Application Manager"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 AUTHOR = "Farouk"
 WEBSITE = "https://www.damergi.com"
 PUBLIC_REPOSITORY = "https://github.com/dafarouk/JAM"
